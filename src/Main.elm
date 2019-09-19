@@ -1,13 +1,23 @@
 module Main exposing (..)
 
-import List exposing (foldl)
-import Html exposing (Html)
+import Html exposing (Html, div)
 import LineChart
+import List exposing (foldl)
+import Svg exposing (Svg)
+
+
+trades =
+    [ OptionTrade (Option Call 10600 158.9) Buy 75
+    , OptionTrade (Option Call 10800 52.8) Sell 75
+    , OptionTrade (Option Put 10500 24.65) Sell 75
+    ]
 
 
 main : Html msg
 main =
-    LineChart.view1 .x .y (getPoints [trade1, trade2, trade3])
+    div []
+        [ getPnLChart trades
+        ]
 
 
 type alias Point =
@@ -38,41 +48,72 @@ type alias Option =
 type Trade
     = OptionTrade Option TradeType Quantity
 
---type PnL = Profit Float | Loss Float
-
-applyTradeType: TradeType -> Float -> Float
-applyTradeType tt p =
-    case tt of
-        Buy -> p
-        Sell -> -p
 
 getPnL : Trade -> Float -> Float
 getPnL (OptionTrade o tt q) expPrice =
     let
-        profit =
+        profitPerStock =
             case o.type_ of
                 Call ->
-                    if expPrice < o.strike then -o.premium else ( expPrice - o.strike - o.premium )
+                    if expPrice < o.strike then
+                        -o.premium
+
+                    else
+                        expPrice - o.strike - o.premium
+
                 Put ->
-                    if expPrice > o.strike then -o.premium else ( o.strike - expPrice - o.premium )
-     in
-     applyTradeType tt profit
+                    if expPrice > o.strike then
+                        -o.premium
+
+                    else
+                        o.strike - expPrice - o.premium
+
+        profit =
+            profitPerStock * toFloat q
+    in
+    case tt of
+        Buy ->
+            profit
+
+        Sell ->
+            -profit
+
 
 getMultiPnL : List Trade -> Float -> Float
-getMultiPnL lt expPrice = foldl (\t -> \v -> ( (getPnL t expPrice) + v )) 0 lt
+getMultiPnL lt expPrice =
+    foldl (\t -> \v -> getPnL t expPrice + v) 0 lt
 
-trade1 = OptionTrade (Option Call 10800 96.1) Buy 75
-trade2 = OptionTrade (Option Call 10900 42) Sell 75
-trade3 = OptionTrade (Option Put 10700 13.6) Sell 75
 
---getExpiryPrice: Trade -> Float
---getExpiryPrice (OptionTrade)
+getStrikePrice : Trade -> Float
+getStrikePrice (OptionTrade o tt q) =
+    o.strike
+
+
+computeXPoints : List Trade -> List Float
+computeXPoints =
+    addExtraBack << addExtraFront 0.99 << List.sort << List.map getStrikePrice
+
+
+addExtraFront : Float -> List Float -> List Float
+addExtraFront factor lx =
+    case lx of
+        [] ->
+            []
+
+        x :: xs ->
+            (x * factor) :: (x :: xs)
+
+
+addExtraBack : List Float -> List Float
+addExtraBack =
+    List.reverse << addExtraFront 1.01 << List.reverse
+
 
 getPoints : List Trade -> List Point
 getPoints lt =
-    [ Point 10600 (getMultiPnL lt 10600)
-    , Point 10700 (getMultiPnL lt 10700)
-    , Point 10800 (getMultiPnL lt 10800)
-    , Point 10900 (getMultiPnL lt 10900)
-    , Point 11000 (getMultiPnL lt 11000)]
+    (List.map (\x -> Point x (getMultiPnL lt x)) << computeXPoints) lt
 
+
+getPnLChart : List Trade -> Svg msg
+getPnLChart lt =
+    LineChart.view1 .x .y (getPoints lt)
