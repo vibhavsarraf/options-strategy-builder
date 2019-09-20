@@ -3,7 +3,7 @@ module Main exposing (..)
 import Browser
 import Debug exposing (toString)
 import Html exposing (Html, br, div, input, option, select, text)
-import Html.Attributes exposing (placeholder, type_, value)
+import Html.Attributes exposing (placeholder, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import LineChart
 import List exposing (foldl, foldr)
@@ -12,8 +12,9 @@ import Svg exposing (Svg)
 
 trades =
     [ OptionTrade (Option Call 10600 158.9) Buy 75
-    , OptionTrade (Option Call 10800 52.8) Sell 75
-    , OptionTrade (Option Put 10500 24.65) Sell 75
+
+    --    , OptionTrade (Option Call 10800 52.8) Sell 75
+    --    , OptionTrade (Option Put 10500 24.65) Sell 75
     ]
 
 
@@ -35,7 +36,7 @@ type alias Model =
 
 init : Model
 init =
-    { trades = List.map (\t -> { trade = t, active = True, id = 1 }) trades
+    { trades = List.map (\t -> { trade = t, active = True, id = 0 }) trades
     , price = "10.3"
     , strike = "10500"
     , quantity = "75"
@@ -54,6 +55,7 @@ type Msg
     | OptionType String
     | AddTrade
     | DeleteTrade Int
+    | FlipActive Int
 
 
 update : Msg -> Model -> Model
@@ -78,19 +80,18 @@ update msg model =
             addTrade model
 
         DeleteTrade id ->
-            { model | trades = List.filter (not << \t -> checkIdMatch t id) model.trades }
+            { model | trades = List.filter (not << checkIdMatch id) model.trades }
 
-
-checkIdMatch : TradeHtml -> Int -> Bool
-checkIdMatch t id =
-    t.id == id
+        FlipActive id ->
+            { model | trades = List.map (flipActive id) model.trades }
 
 
 view : Model -> Html Msg
 view model =
     div []
         [ (getPnLChart << getActiveTrades) model
-        , (div [] << List.map convTradeHtml << List.filter .active << .trades) model
+        , (div [] << List.map convTradeHtml << .trades) model
+        , br [] []
         , getSelect [ buySelectOption, sellSelectOption ] TradeType
         , getSelect [ callSelectOption, putSelectOption ] OptionType
         , viewInput "text" "Strike" model.strike Strike
@@ -99,9 +100,22 @@ view model =
         , input [ type_ "submit", value "Add", onClick AddTrade ] []
         , br [] []
         , getErrorText model
-
-        --        , button [ value "Add", onClick Add ] []
+--        , text (toString model)
         ]
+
+
+flipActive : Int -> TradeHtml -> TradeHtml
+flipActive id t =
+    if t.id == id then
+        { t | active = not t.active }
+
+    else
+        t
+
+
+checkIdMatch : Int -> TradeHtml -> Bool
+checkIdMatch id t =
+    t.id == id
 
 
 getErrorText : Model -> Html msg
@@ -232,21 +246,34 @@ getActiveTrades : Model -> List Trade
 getActiveTrades =
     List.map .trade << List.filter .active << .trades
 
-getTradeType: Trade -> TradeType
+
+getTradeType : Trade -> TradeType
 getTradeType (OptionTrade _ tt _) =
     tt
 
-getTradeQuantity: Trade -> Quantity
+
+getTradeQuantity : Trade -> Quantity
 getTradeQuantity (OptionTrade _ _ q) =
     q
 
-getTradeOption: Trade -> Option
+
+getTradeOption : Trade -> Option
 getTradeOption (OptionTrade o _ _) =
     o
 
+
 convTradeHtml : TradeHtml -> Html Msg
 convTradeHtml th =
-    div []
+    let
+        attributes =
+            case th.active of
+                True ->
+                    []
+
+                False ->
+                    [ style "text-decoration" "line-through" ]
+    in
+    div attributes
         [ text
             (foldr (++)
                 ""
@@ -261,6 +288,18 @@ convTradeHtml th =
                 , (toString << .premium << getTradeOption) th.trade
                 ]
             )
+        , input
+            [ type_ "submit"
+            , value
+                (if th.active then
+                    "Hide"
+
+                 else
+                    "Unhide"
+                )
+            , onClick (FlipActive th.id)
+            ]
+            []
         , input [ type_ "submit", value "Remove", onClick (DeleteTrade th.id) ] []
         ]
 
