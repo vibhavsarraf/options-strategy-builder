@@ -1,8 +1,12 @@
 module Main exposing (..)
 
-import Html exposing (Html, div)
+import Browser
+import Debug exposing (toString)
+import Html exposing (Html, br, div, input, option, select, text)
+import Html.Attributes exposing (placeholder, type_, value)
+import Html.Events exposing (onClick, onInput)
 import LineChart
-import List exposing (foldl)
+import List exposing (foldl, foldr)
 import Svg exposing (Svg)
 
 
@@ -13,11 +17,267 @@ trades =
     ]
 
 
-main : Html msg
 main =
+    Browser.sandbox { init = init, update = update, view = view }
+
+
+type alias Model =
+    { trades : List TradeHtml
+    , tradeType : String
+    , optionType : String
+    , price : String
+    , strike : String
+    , quantity : String
+    , errMsg : Maybe String
+    , id : Int
+    }
+
+
+init : Model
+init =
+    { trades = List.map (\t -> { trade = t, active = True, id = 1 }) trades
+    , price = "10.3"
+    , strike = "10500"
+    , quantity = "75"
+    , errMsg = Nothing
+    , optionType = "call"
+    , tradeType = "buy"
+    , id = 1
+    }
+
+
+type Msg
+    = Price String
+    | Strike String
+    | Quantity String
+    | TradeType String
+    | OptionType String
+    | AddTrade
+    | DeleteTrade Int
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        Price p ->
+            { model | price = p }
+
+        Strike s ->
+            { model | strike = s }
+
+        Quantity q ->
+            { model | quantity = q }
+
+        TradeType tt ->
+            { model | tradeType = tt }
+
+        OptionType ot ->
+            { model | optionType = ot }
+
+        AddTrade ->
+            addTrade model
+
+        DeleteTrade id ->
+            { model | trades = List.filter (not << \t -> checkIdMatch t id) model.trades }
+
+
+checkIdMatch : TradeHtml -> Int -> Bool
+checkIdMatch t id =
+    t.id == id
+
+
+view : Model -> Html Msg
+view model =
     div []
-        [ getPnLChart trades
+        [ (getPnLChart << getActiveTrades) model
+        , (div [] << List.map convTradeHtml << List.filter .active << .trades) model
+        , getSelect [ buySelectOption, sellSelectOption ] TradeType
+        , getSelect [ callSelectOption, putSelectOption ] OptionType
+        , viewInput "text" "Strike" model.strike Strike
+        , viewInput "text" "Price" model.price Price
+        , viewInput "text" "Quantity" model.quantity Quantity
+        , input [ type_ "submit", value "Add", onClick AddTrade ] []
+        , br [] []
+        , getErrorText model
+
+        --        , button [ value "Add", onClick Add ] []
         ]
+
+
+getErrorText : Model -> Html msg
+getErrorText model =
+    case model.errMsg of
+        Just err ->
+            text err
+
+        Nothing ->
+            text ""
+
+
+addTrade : Model -> Model
+addTrade model =
+    case String.toFloat model.strike of
+        Just s ->
+            case String.toFloat model.price of
+                Just p ->
+                    case String.toInt model.quantity of
+                        Just q ->
+                            case stringToOptionType model.optionType of
+                                Just ot ->
+                                    case stringToTradeType model.tradeType of
+                                        Just tt ->
+                                            { model
+                                                | trades = model.trades ++ [ TradeHtml (OptionTrade (Option ot s p) tt q) True model.id ]
+                                                , id = model.id + 1
+                                                , errMsg = Nothing
+                                            }
+
+                                        Nothing ->
+                                            putWrongInputError model "tt"
+
+                                Nothing ->
+                                    putWrongInputError model "ot"
+
+                        Nothing ->
+                            putWrongInputError model "q"
+
+                Nothing ->
+                    putWrongInputError model "p"
+
+        Nothing ->
+            putWrongInputError model "s"
+
+
+putWrongInputError : Model -> String -> Model
+putWrongInputError model s =
+    { model | errMsg = Just ("Wrong input " ++ s ++ " " ++ toString model) }
+
+
+stringToTradeType : String -> Maybe TradeType
+stringToTradeType s =
+    case s of
+        "buy" ->
+            Just Buy
+
+        "sell" ->
+            Just Sell
+
+        _ ->
+            Nothing
+
+
+stringToOptionType : String -> Maybe OptionType
+stringToOptionType s =
+    case s of
+        "call" ->
+            Just Call
+
+        "put" ->
+            Just Put
+
+        _ ->
+            Nothing
+
+
+type alias SelectOption =
+    { value : String
+    , text_ : String
+    }
+
+
+buySelectOption : SelectOption
+buySelectOption =
+    { value = "buy"
+    , text_ = "Buy"
+    }
+
+
+sellSelectOption : SelectOption
+sellSelectOption =
+    { value = "sell"
+    , text_ = "Sell"
+    }
+
+
+callSelectOption : SelectOption
+callSelectOption =
+    { value = "call"
+    , text_ = "Call"
+    }
+
+
+putSelectOption : SelectOption
+putSelectOption =
+    { value = "put"
+    , text_ = "Put"
+    }
+
+
+getOptionView : SelectOption -> Html msg
+getOptionView so =
+    option [ value so.value ] [ text so.text_ ]
+
+
+getSelect : List SelectOption -> (String -> msg) -> Html msg
+getSelect lo toMsg =
+    (select [ onInput toMsg ] << List.map getOptionView) lo
+
+
+viewInput : String -> String -> String -> (String -> msg) -> Html msg
+viewInput t p v toMsg =
+    input [ type_ t, placeholder p, value v, onInput toMsg ] []
+
+
+getActiveTrades : Model -> List Trade
+getActiveTrades =
+    List.map .trade << List.filter .active << .trades
+
+getTradeType: Trade -> TradeType
+getTradeType (OptionTrade _ tt _) =
+    tt
+
+getTradeQuantity: Trade -> Quantity
+getTradeQuantity (OptionTrade _ _ q) =
+    q
+
+getTradeOption: Trade -> Option
+getTradeOption (OptionTrade o _ _) =
+    o
+
+convTradeHtml : TradeHtml -> Html Msg
+convTradeHtml th =
+    div []
+        [ text
+            (foldr (++)
+                ""
+                [ (toString << getTradeType) th.trade
+                , " "
+                , (toString << getTradeQuantity) th.trade
+                , " "
+                , (toString << .type_ << getTradeOption) th.trade
+                , " "
+                , (toString << .strike << getTradeOption) th.trade
+                , " at "
+                , (toString << .premium << getTradeOption) th.trade
+                ]
+            )
+        , input [ type_ "submit", value "Remove", onClick (DeleteTrade th.id) ] []
+        ]
+
+
+type alias TradeHtml =
+    { trade : Trade
+    , active : Bool
+    , id : Int
+    }
+
+
+
+--tradeTypeToString: TradeType -> String
+--tradeTypeToString tt =
+--    case tt of
+--        Buy -> "Buy"
+--        Sell -> "Sell"
 
 
 type alias Point =
