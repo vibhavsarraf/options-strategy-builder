@@ -6,16 +6,20 @@ import Html exposing (Html, br, div, input, option, select, text)
 import Html.Attributes exposing (placeholder, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import LineChart
+import LineChart.Area as Area
+import LineChart.Axis as Axis
+import LineChart.Axis.Intersection as Intersection
+import LineChart.Colors as Color
+import LineChart.Container as Container
+import LineChart.Dots as Dots
+import LineChart.Events as Events
+import LineChart.Grid as Grid
+import LineChart.Interpolation as Interpolation
+import LineChart.Junk as Junk exposing (..)
+import LineChart.Legends as Legends
+import LineChart.Line as Line
 import List exposing (foldl, foldr)
 import Svg exposing (Svg)
-
-
-trades =
-    [ OptionTrade (Option Call 10600 158.9) Buy 75
-
-    --    , OptionTrade (Option Call 10800 52.8) Sell 75
-    --    , OptionTrade (Option Put 10500 24.65) Sell 75
-    ]
 
 
 main =
@@ -36,14 +40,17 @@ type alias Model =
 
 init : Model
 init =
-    { trades = List.map (\t -> { trade = t, active = True, id = 0 }) trades
+    { trades =
+        [ { trade = OptionTrade (Option Call 10600 158.9) Buy 75, active = True, id = 0 }
+        , { trade = OptionTrade (Option Call 10800 52.5) Sell 75, active = True, id = 1 }
+        ]
     , price = "10.3"
     , strike = "10500"
     , quantity = "75"
     , errMsg = Nothing
     , optionType = "call"
     , tradeType = "buy"
-    , id = 1
+    , id = 2
     }
 
 
@@ -100,7 +107,8 @@ view model =
         , input [ type_ "submit", value "Add", onClick AddTrade ] []
         , br [] []
         , getErrorText model
---        , text (toString model)
+
+        --        , text (toString model)
         ]
 
 
@@ -128,6 +136,10 @@ getErrorText model =
             text ""
 
 
+
+-- This style is bad. How to do it in a better way?
+
+
 addTrade : Model -> Model
 addTrade model =
     case String.toFloat model.strike of
@@ -147,24 +159,24 @@ addTrade model =
                                             }
 
                                         Nothing ->
-                                            putWrongInputError model "tt"
+                                            putWrongInputError model "Buy or Sell"
 
                                 Nothing ->
-                                    putWrongInputError model "ot"
+                                    putWrongInputError model "option type"
 
                         Nothing ->
-                            putWrongInputError model "q"
+                            putWrongInputError model "quantity"
 
                 Nothing ->
-                    putWrongInputError model "p"
+                    putWrongInputError model "price"
 
         Nothing ->
-            putWrongInputError model "s"
+            putWrongInputError model "strike price"
 
 
 putWrongInputError : Model -> String -> Model
 putWrongInputError model s =
-    { model | errMsg = Just ("Wrong input " ++ s ++ " " ++ toString model) }
+    { model | errMsg = Just ("Wrong input " ++ s) }
 
 
 stringToTradeType : String -> Maybe TradeType
@@ -311,16 +323,10 @@ type alias TradeHtml =
     }
 
 
-
---tradeTypeToString: TradeType -> String
---tradeTypeToString tt =
---    case tt of
---        Buy -> "Buy"
---        Sell -> "Sell"
-
-
 type alias Point =
-    { x : Float, y : Float }
+    { expPrice : Float
+    , profit : Float
+    }
 
 
 type OptionType
@@ -415,4 +421,22 @@ getPoints lt =
 
 getPnLChart : List Trade -> Svg msg
 getPnLChart lt =
-    LineChart.view1 .x .y (getPoints lt)
+    LineChart.viewCustom
+        { y = Axis.default 450 "Profit" .profit
+        , x = Axis.default 700 "Expiry Price" .expPrice
+        , container = Container.styled "line-chart-1" [ ( "font-family", "monospace" ) ]
+        , interpolation = Interpolation.default
+        , intersection = Intersection.default
+        , legends = Legends.default
+        , events = Events.default
+        , junk = Junk.default
+        , grid = Grid.default
+        , area = Area.default
+        , line = Line.default
+        , dots = Dots.default
+        }
+        [ LineChart.line Color.green Dots.circle "Strategy" (getPoints lt) ]
+
+
+
+--    LineChart.view1 .expPrice .profit (getPoints lt)
