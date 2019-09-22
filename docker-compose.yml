@@ -1,0 +1,14 @@
+version: "3"
+
+networks:
+  web:
+    external: true
+
+services:
+
+  strategy-builder:
+    build: .
+    networks:
+      - web
+    labels:
+      - "traefik.http.routers.whoami.rule=PathPrefix(`/bar`)"
