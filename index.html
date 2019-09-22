@@ -5236,7 +5236,7 @@ var author$project$Main$convTradeHtml = function (th) {
 									return $.type_;
 								}),
 							author$project$Main$getTradeOption)(th.trade),
-							' ',
+							' options at strike price ',
 							A2(
 							elm$core$Basics$composeL,
 							A2(
@@ -5246,7 +5246,7 @@ var author$project$Main$convTradeHtml = function (th) {
 									return $.strike;
 								}),
 							author$project$Main$getTradeOption)(th.trade),
-							' at ',
+							' for ',
 							A2(
 							elm$core$Basics$composeL,
 							A2(
@@ -5255,7 +5255,8 @@ var author$project$Main$convTradeHtml = function (th) {
 								function ($) {
 									return $.premium;
 								}),
-							author$project$Main$getTradeOption)(th.trade)
+							author$project$Main$getTradeOption)(th.trade),
+							' each'
 						]))),
 				A2(
 				elm$html$Html$input,
@@ -9275,12 +9276,20 @@ var author$project$Main$viewInput = F4(
 			_List_Nil);
 	});
 var elm$html$Html$br = _VirtualDom_node('br');
+var elm$html$Html$h1 = _VirtualDom_node('h1');
 var author$project$Main$view = function (model) {
 	return A2(
 		elm$html$Html$div,
 		_List_Nil,
 		_List_fromArray(
 			[
+				A2(
+				elm$html$Html$h1,
+				_List_Nil,
+				_List_fromArray(
+					[
+						elm$html$Html$text('Stock Options Strategy Builder')
+					])),
 				A2(elm$core$Basics$composeL, author$project$Main$getPnLChart, author$project$Main$getActiveTrades)(model),
 				A2(
 				elm$core$Basics$composeL,

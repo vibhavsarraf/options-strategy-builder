@@ -10,5 +10,7 @@ services:
     build: .
     networks:
       - web
+    volumes:
+      - "$PWD/index.html:/src/index.html"
     labels:
       - "traefik.http.routers.whoami.rule=PathPrefix(`/bar`)"

@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Debug exposing (toString)
-import Html exposing (Html, br, div, input, option, select, text)
+import Html exposing (Html, br, div, h1, input, option, select, text)
 import Html.Attributes exposing (placeholder, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import LineChart
@@ -96,7 +96,8 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ (getPnLChart << getActiveTrades) model
+        [ h1 [] [ text "Stock Options Strategy Builder" ]
+        , (getPnLChart << getActiveTrades) model
         , (div [] << List.map convTradeHtml << .trades) model
         , br [] []
         , getSelect [ buySelectOption, sellSelectOption ] TradeType
@@ -294,10 +295,11 @@ convTradeHtml th =
                 , (toString << getTradeQuantity) th.trade
                 , " "
                 , (toString << .type_ << getTradeOption) th.trade
-                , " "
+                , " options at strike price "
                 , (toString << .strike << getTradeOption) th.trade
-                , " at "
+                , " for "
                 , (toString << .premium << getTradeOption) th.trade
+                , " each"
                 ]
             )
         , input
