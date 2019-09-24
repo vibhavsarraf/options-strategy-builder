@@ -2,8 +2,8 @@ module Main exposing (..)
 
 import Browser
 import Debug exposing (toString)
-import Html exposing (Html, br, div, h1, input, option, select, text)
-import Html.Attributes exposing (placeholder, style, type_, value)
+import Html exposing (Html, br, div, h2, input, option, select, text)
+import Html.Attributes exposing (class, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import LineChart
 import LineChart.Area as Area
@@ -44,9 +44,9 @@ init =
         [ { trade = OptionTrade (Option Call 10600 158.9) Buy 75, active = True, id = 0 }
         , { trade = OptionTrade (Option Call 10800 52.5) Sell 75, active = True, id = 1 }
         ]
-    , price = "10.3"
-    , strike = "10500"
-    , quantity = "75"
+    , price = ""
+    , strike = ""
+    , quantity = ""
     , errMsg = Nothing
     , optionType = "call"
     , tradeType = "buy"
@@ -95,21 +95,30 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ h1 [] [ text "Stock Options Strategy Builder" ]
+    div [ class "container" ]
+        [ h2 [] [ text "Stock Options Strategy Builder" ]
         , (getPnLChart << getActiveTrades) model
-        , (div [] << List.map convTradeHtml << .trades) model
+        , div [ class "col" ] ((List.map convTradeHtml << .trades) model)
         , br [] []
-        , getSelect [ buySelectOption, sellSelectOption ] TradeType
-        , getSelect [ callSelectOption, putSelectOption ] OptionType
-        , viewInput "text" "Strike" model.strike Strike
-        , viewInput "text" "Price" model.price Price
-        , viewInput "text" "Quantity" model.quantity Quantity
-        , input [ type_ "submit", value "Add", onClick AddTrade ] []
-        , br [] []
-        , getErrorText model
+        , getForm model
+        ]
 
-        --        , text (toString model)
+
+getForm : Model -> Html Msg
+getForm model =
+    div [ class "col" ]
+        [ div [ class "row mb-1" ]
+            [ getSelect [ buySelectOption, sellSelectOption ] TradeType
+            , getSelect [ callSelectOption, putSelectOption ] OptionType
+            ]
+        , div [ class "row" ]
+            [ viewInput "text" "Strike" model.strike Strike
+            , viewInput "text" "Price" model.price Price
+            , viewInput "text" "Quantity" model.quantity Quantity
+            ]
+        , br [] []
+        , input [ type_ "submit", value "Add", onClick AddTrade ] []
+        , getErrorText model
         ]
 
 
@@ -247,12 +256,12 @@ getOptionView so =
 
 getSelect : List SelectOption -> (String -> msg) -> Html msg
 getSelect lo toMsg =
-    (select [ onInput toMsg ] << List.map getOptionView) lo
+    div [ class "mr-2" ] [ (select [ onInput toMsg ] << List.map getOptionView) lo ]
 
 
 viewInput : String -> String -> String -> (String -> msg) -> Html msg
 viewInput t p v toMsg =
-    input [ type_ t, placeholder p, value v, onInput toMsg ] []
+    input [ class "mr-1", type_ t, placeholder p, value v, onInput toMsg ] []
 
 
 getActiveTrades : Model -> List Trade
@@ -286,35 +295,40 @@ convTradeHtml th =
                 False ->
                     [ style "text-decoration" "line-through" ]
     in
-    div attributes
-        [ text
-            (foldr (++)
-                ""
-                [ (toString << getTradeType) th.trade
-                , " "
-                , (toString << getTradeQuantity) th.trade
-                , " "
-                , (toString << .type_ << getTradeOption) th.trade
-                , " options at strike price "
-                , (toString << .strike << getTradeOption) th.trade
-                , " for "
-                , (toString << .premium << getTradeOption) th.trade
-                , " each"
-                ]
-            )
-        , input
-            [ type_ "submit"
-            , value
-                (if th.active then
-                    "Hide"
-
-                 else
-                    "Unhide"
+    div [ class "row mb-1" ]
+        [ div (attributes ++ [ class "col-sm-6" ])
+            [ text
+                (foldr (++)
+                    ""
+                    [ (toString << getTradeType) th.trade
+                    , " "
+                    , (toString << getTradeQuantity) th.trade
+                    , " "
+                    , (toString << .type_ << getTradeOption) th.trade
+                    , " options at strike price "
+                    , (toString << .strike << getTradeOption) th.trade
+                    , " for "
+                    , (toString << .premium << getTradeOption) th.trade
+                    , " each"
+                    ]
                 )
-            , onClick (FlipActive th.id)
             ]
-            []
-        , input [ type_ "submit", value "Remove", onClick (DeleteTrade th.id) ] []
+        , div [ class "col-sm-6" ]
+            [ input
+                [ class "btn btn-secondary"
+                , type_ "submit"
+                , value
+                    (if th.active then
+                        "Hide"
+
+                     else
+                        "Unhide"
+                    )
+                , onClick (FlipActive th.id)
+                ]
+                []
+            , input [ class "btn btn-danger", type_ "submit", value "Remove", onClick (DeleteTrade th.id) ] []
+            ]
         ]
 
 

@@ -12,5 +12,6 @@ services:
       - web
     volumes:
       - "$PWD/index.html:/src/index.html"
+      - "$PWD/main.js:/src/main.js"
     labels:
       - "traefik.http.routers.whoami.rule=PathPrefix(`/bar`)"

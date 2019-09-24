@@ -2,7 +2,7 @@ FROM golang:1.13-alpine
 
 WORKDIR /src
 
-ENV REFRESHED_AT 2019-09-22-80-1
+ENV REFRESHED_AT 2019-09-24
 
 COPY main.go .
 
